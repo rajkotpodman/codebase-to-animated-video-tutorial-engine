@@ -4,7 +4,7 @@ uvicorn[standard]>=0.28.0
 celery>=5.3.6
 redis>=4.6.0
 python-multipart>=0.0.9
-sse-starlette>=2.0.0
+sse-starlette>=3.6.0
 scalar-fastapi>=1.0.0
 
 # Reliability, Observability, Rate Limiting & Caching
