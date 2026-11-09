@@ -28,7 +28,7 @@
   "devDependencies": {
     "@openapitools/openapi-generator-cli": "^2.42.0",
     "@playwright/test": "^1.65.0",
-    "@types/node": "^22.10.0",
+    "@types/node": "^26.6.6",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "autoprefixer": "^10.4.20",
