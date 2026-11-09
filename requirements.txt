@@ -11,7 +11,7 @@ scalar-fastapi>=1.0.0
 sentry-sdk[fastapi,celery]>=2.0.0
 structlog>=24.0.0
 slowapi>=0.1.9
-prometheus-fastapi-instrumentator>=7.0.0
+prometheus-fastapi-instrumentator>=8.1.0
 fastapi-cache2[redis]>=0.2.1
 
 # Codebase Ingestion & LLM Script Synthesis
