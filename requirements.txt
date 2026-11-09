@@ -12,7 +12,7 @@ sentry-sdk[fastapi,celery]>=2.0.0
 structlog>=24.0.0
 slowapi>=0.1.9
 prometheus-fastapi-instrumentator>=7.0.0
-fastapi-cache2[redis]>=0.2.1
+fastapi-cache2[redis]>=0.2.2
 
 # Codebase Ingestion & LLM Script Synthesis
 gitpython>=3.1.40
