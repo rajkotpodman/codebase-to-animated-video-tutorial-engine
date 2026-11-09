@@ -1,0 +1,43 @@
+[tool.black]
+line-length = 120
+target-version = ['py311']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | venv
+  | build
+  | dist
+  | frontend
+  | node_modules
+  | output_artifacts
+  | tmp_artifacts
+)/
+'''
+
+[tool.bandit]
+exclude_dirs = [
+    "tests",
+    "frontend",
+    "node_modules",
+    ".venv",
+    "alembic/versions",
+    "output_artifacts",
+    "tmp_artifacts",
+]
+skips = ["B101", "B404", "B603"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = [
+    "output_artifacts",
+    "tmp_artifacts",
+    "node_modules",
+    "frontend",
+    ".git",
+    "venv",
+    ".venv",
+]
+
+

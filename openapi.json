@@ -1,0 +1,852 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Codebase-to-Animated Video Tutorial Engine",
+    "description": "Automated end-to-end backend service that converts public GitHub codebases into animated tutorial videos.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/generate-video": {
+      "post": {
+        "tags": [
+          "Video Generation Pipeline"
+        ],
+        "summary": "Trigger asynchronous codebase tutorial video generation",
+        "description": "Triggers the 5-stage background video generation pipeline:\n\n1. Ingestion / Repomix codebase packaging\n2. Gemini AI architecture topology & script generation\n3. Manim Community animation rendering\n4. Neural voiceover TTS & .srt subtitle synthesis\n5. FFmpeg final resolution scaling, duration sync, & subtitle burn-in",
+        "operationId": "generate_video_api_v1_generate_video_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateVideoRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerateVideoResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/jobs/{job_id}": {
+      "get": {
+        "tags": [
+          "Video Generation Pipeline"
+        ],
+        "summary": "Query background task status and progress",
+        "description": "Poll the status and progress of a video generation task with short-lived caching.",
+        "operationId": "get_job_status_api_v1_jobs__job_id__get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobStatusResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/jobs/{job_id}/stream": {
+      "get": {
+        "tags": [
+          "Video Generation Pipeline"
+        ],
+        "summary": "Stream live video generation progress via Server-Sent Events (SSE)",
+        "description": "Stream live progress updates (0% to 100% and stage changes) directly via Server-Sent Events.",
+        "operationId": "stream_job_progress_api_v1_jobs__job_id__stream_get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/jobs/{job_id}/download": {
+      "get": {
+        "tags": [
+          "Video Generation Pipeline"
+        ],
+        "summary": "Download the final rendered MP4 tutorial video",
+        "description": "Stream or download the final synthesized HD tutorial video.",
+        "operationId": "download_video_api_v1_jobs__job_id__download_get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/billing/create-checkout-session": {
+      "post": {
+        "tags": [
+          "Stripe SaaS Billing"
+        ],
+        "summary": "Create a Stripe Checkout session for video generation credits",
+        "description": "Initiates an official Stripe hosted checkout session using standard Stripe SDK patterns.\n\nParameters\n----------\npayload : CreateCheckoutSessionRequest\n    Selected credit package.\ncurrent_user : AuthenticatedUser\n    Verified user from JWT middleware.",
+        "operationId": "create_checkout_session_api_v1_billing_create_checkout_session_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCheckoutSessionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutSessionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/billing/webhook": {
+      "post": {
+        "tags": [
+          "Stripe SaaS Billing"
+        ],
+        "summary": "Stripe Webhook Listener for asynchronous payment fulfillment",
+        "description": "Receives and verifies Stripe webhook events, automatically provisioning credits in PostgreSQL.",
+        "operationId": "stripe_webhook_api_v1_billing_webhook_post",
+        "parameters": [
+          {
+            "name": "stripe-signature",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Stripe-Signature"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/billing/balance": {
+      "get": {
+        "tags": [
+          "Stripe SaaS Billing"
+        ],
+        "summary": "Retrieve authenticated user's current credit balance",
+        "description": "Returns the persistent credit balance from PostgreSQL for the authenticated user.",
+        "operationId": "get_balance_api_v1_billing_balance_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserBalanceResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/billing/history": {
+      "get": {
+        "tags": [
+          "Stripe SaaS Billing"
+        ],
+        "summary": "Audit trail of video generation jobs and credit deductions",
+        "description": "Returns past video generation deductions and timestamps.",
+        "operationId": "get_billing_history_api_v1_billing_history_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BillingHistoryItem"
+                  },
+                  "type": "array",
+                  "title": "Response Get Billing History Api V1 Billing History Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/billing/add-credits": {
+      "post": {
+        "tags": [
+          "Stripe SaaS Billing"
+        ],
+        "summary": "Mock credit purchase for frontend test modal (for dev/testing)",
+        "description": "Direct mock credit addition for frontend test modal.",
+        "operationId": "add_credits_mock_api_v1_billing_add_credits_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object",
+                "title": "Payload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/metrics": {
+      "get": {
+        "tags": [
+          "Observability"
+        ],
+        "summary": "Metrics",
+        "description": "Endpoint that serves Prometheus metrics.",
+        "operationId": "metrics_metrics_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "tags": [
+          "General"
+        ],
+        "summary": "Root",
+        "description": "Service metadata and health check.",
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "General"
+        ],
+        "summary": "Health Check",
+        "description": "Liveness probe.",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sentry-debug": {
+      "get": {
+        "tags": [
+          "General"
+        ],
+        "summary": "Trigger test exception for Sentry observability validation",
+        "description": "Triggers an intentional ZeroDivisionError to verify Sentry exception capture.",
+        "operationId": "trigger_sentry_error_sentry_debug_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BillingHistoryItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "repo_name": {
+            "type": "string",
+            "title": "Repo Name"
+          },
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp"
+          },
+          "duration_seconds": {
+            "type": "integer",
+            "title": "Duration Seconds"
+          },
+          "resolution": {
+            "type": "string",
+            "title": "Resolution"
+          },
+          "cost_credits": {
+            "type": "integer",
+            "title": "Cost Credits"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "job_id",
+          "repo_name",
+          "timestamp",
+          "duration_seconds",
+          "resolution",
+          "cost_credits",
+          "cost_usd",
+          "status"
+        ],
+        "title": "BillingHistoryItem"
+      },
+      "CheckoutSessionResponse": {
+        "properties": {
+          "checkout_url": {
+            "type": "string",
+            "title": "Checkout Url"
+          },
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "package_name": {
+            "type": "string",
+            "title": "Package Name"
+          },
+          "credits": {
+            "type": "integer",
+            "title": "Credits"
+          },
+          "amount_usd": {
+            "type": "number",
+            "title": "Amount Usd"
+          }
+        },
+        "type": "object",
+        "required": [
+          "checkout_url",
+          "session_id",
+          "package_name",
+          "credits",
+          "amount_usd"
+        ],
+        "title": "CheckoutSessionResponse"
+      },
+      "CreateCheckoutSessionRequest": {
+        "properties": {
+          "package_id": {
+            "type": "string",
+            "title": "Package Id",
+            "description": "Catalog identifier for desired package ('single_tutorial', 'starter_10', 'pro_50', 'studio_200')",
+            "default": "pro_50",
+            "examples": [
+              "single_tutorial",
+              "pro_50"
+            ]
+          }
+        },
+        "type": "object",
+        "title": "CreateCheckoutSessionRequest"
+      },
+      "GenerateVideoRequest": {
+        "properties": {
+          "repo_url": {
+            "type": "string",
+            "title": "Repo Url",
+            "description": "Public GitHub repository URL (e.g. 'https://github.com/octocat/Hello-World')",
+            "examples": [
+              "https://github.com/octocat/Hello-World",
+              "yamadashy/repomix"
+            ]
+          },
+          "voice": {
+            "type": "string",
+            "title": "Voice",
+            "description": "Neural TTS voice model (e.g. 'en-US-ChristopherNeural', 'en-US-GuyNeural', 'en-US-JennyNeural')",
+            "default": "en-US-ChristopherNeural"
+          },
+          "resolution": {
+            "type": "string",
+            "enum": [
+              "1080p",
+              "720p",
+              "480p"
+            ],
+            "title": "Resolution",
+            "description": "Target output video resolution",
+            "default": "1080p"
+          },
+          "theme": {
+            "type": "string",
+            "enum": [
+              "midnight",
+              "dark",
+              "cyberpunk",
+              "nord"
+            ],
+            "title": "Theme",
+            "description": "Manim architecture diagram styling theme",
+            "default": "midnight"
+          },
+          "burn_subtitles": {
+            "type": "boolean",
+            "title": "Burn Subtitles",
+            "description": "Whether to burn synchronized subtitles directly into the video stream",
+            "default": true
+          },
+          "custom_instructions": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Instructions",
+            "description": "Optional custom focus prompt for Gemini script generation (e.g. 'Focus on auth & caching')"
+          },
+          "run_sync": {
+            "type": "boolean",
+            "title": "Run Sync",
+            "description": "If True, runs synchronously in-process (useful for local debugging or non-Celery environments)",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "repo_url"
+        ],
+        "title": "GenerateVideoRequest",
+        "description": "Payload for initiating tutorial video generation."
+      },
+      "GenerateVideoResponse": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "status_url": {
+            "type": "string",
+            "title": "Status Url"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "status",
+          "status_url",
+          "message"
+        ],
+        "title": "GenerateVideoResponse",
+        "description": "Immediate response confirming task enqueue."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "JobStatusResponse": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "progress": {
+            "type": "integer",
+            "title": "Progress"
+          },
+          "step": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step"
+          },
+          "step_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Name"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "download_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Download Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "status",
+          "progress"
+        ],
+        "title": "JobStatusResponse",
+        "description": "Job status, progress percentage, and final output artifacts."
+      },
+      "UserBalanceResponse": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "credits": {
+            "type": "integer",
+            "title": "Credits"
+          },
+          "plan": {
+            "type": "string",
+            "title": "Plan"
+          },
+          "cost_per_tutorial_usd": {
+            "type": "number",
+            "title": "Cost Per Tutorial Usd"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "email",
+          "credits",
+          "plan",
+          "cost_per_tutorial_usd",
+          "currency"
+        ],
+        "title": "UserBalanceResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

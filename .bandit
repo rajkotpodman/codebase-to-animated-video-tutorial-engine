@@ -1,0 +1,31 @@
+# =============================================================================
+# Bandit SAST Configuration File (.bandit)
+# Open-source Static Application Security Testing for CodeVideo AI backend
+# https://bandit.readthedocs.io/en/latest/config.html
+# =============================================================================
+
+# Directories to exclude from static code security scans
+exclude_dirs:
+  - "tests"
+  - "frontend"
+  - "node_modules"
+  - ".venv"
+  - "alembic/versions"
+  - "output_artifacts"
+  - "tmp_artifacts"
+
+# Target test IDs to skip with documented security rationale:
+# - B101 (assert_used): Asserts used for type narrowing and internal invariants
+# - B404 (blacklist_imports): Subprocess module required for Manim CLI, Repomix, and FFmpeg pipeline
+# - B603 (subprocess_without_shell_equals_true): Subprocess executions invoke trusted system binaries using parameterized argument lists
+skips:
+  - "B101"
+  - "B404"
+  - "B603"
+
+# Granular assertion configuration
+assert_used:
+  skips:
+    - "*_test.py"
+    - "test_*.py"
+    - "tests/*"

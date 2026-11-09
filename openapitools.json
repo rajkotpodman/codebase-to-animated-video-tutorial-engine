@@ -1,0 +1,32 @@
+{
+  "$schema": "node_modules/@openapitools/openapi-generator-cli/config.schema.json",
+  "spaces": 2,
+  "generator-cli": {
+    "version": "7.27.0",
+    "generators": {
+      "typescript-client": {
+        "generatorName": "typescript-fetch",
+        "output": "#{cwd}/frontend/src/api",
+        "inputSpec": "#{cwd}/openapi.json",
+        "additionalProperties": {
+          "supportsES6": true,
+          "typescriptThreePlus": true,
+          "useSingleRequestParameter": true,
+          "modelPropertyNaming": "original",
+          "enumNameSuffix": "Enum"
+        }
+      },
+      "python-client": {
+        "generatorName": "python",
+        "output": "#{cwd}/sdk/python",
+        "inputSpec": "#{cwd}/openapi.json",
+        "additionalProperties": {
+          "packageName": "codevideo_client",
+          "projectName": "codevideo-python-sdk",
+          "packageVersion": "0.1.0"
+        }
+      }
+    }
+  }
+}
+

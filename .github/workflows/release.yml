@@ -1,0 +1,48 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract Release Notes from CHANGELOG.md
+        id: changelog
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          VERSION="${TAG_NAME#v}"
+          echo "Building release for version: $VERSION"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          body: |
+            ### 🎬 Codebase-to-Animated Video Tutorial Engine ${{ github.ref_name }}
+            
+            Autonomous media generation engine for public GitHub codebases.
+            
+            #### 🌟 Highlights
+            - **Autonomous Ingestion**: Repomix code compaction & AST dependency graphs.
+            - **Google Gemini 1.5**: 4+ scene technical explanation script synthesis.
+            - **Manim Vector Graphics**: Audio-scaled vector animation rendering.
+            - **Multilingual Neural TTS**: 21+ languages (Hindi, Gujarati, Spanish, French, etc.).
+            - **Anti-Black Screen**: FFmpeg `tpad` hold & persistent card rendering.
+            - **🟡 Binance Pay (1 USDT = 1 Video)**: Crypto micro-transactions with instant auto-credit deposit.
+            
+            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for full release details.

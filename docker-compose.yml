@@ -1,0 +1,172 @@
+services:
+  # ===========================================================================
+  # 1. PostgreSQL Relational Database (User accounts, credits, ledger)
+  # ===========================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: codevideo_postgres
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-codevideo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-codevideo_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-codevideo_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-codevideo} -d ${POSTGRES_DB:-codevideo_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - codevideo_network
+
+  # ===========================================================================
+  # 2. Redis In-Memory Message Broker & Result Store
+  # ===========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: codevideo_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - codevideo_network
+
+  # ===========================================================================
+  # 3. FastAPI Core Backend REST API
+  # ===========================================================================
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: codevideo_backend
+    restart: unless-stopped
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    environment:
+      # Database & Cache Connections
+      DATABASE_URL: postgresql://${POSTGRES_USER:-codevideo}:${POSTGRES_PASSWORD:-codevideo_secret}@postgres:5432/${POSTGRES_DB:-codevideo_db}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      REDIS_URL: redis://redis:6379/0
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+
+      # AI & Cloud Credentials
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-codevideo-tutorials}
+
+      # Authentication & Stripe SaaS Billing
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET:-}
+      AUTH_REQUIRED: ${AUTH_REQUIRED:-false}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+    volumes:
+      - video_artifacts:/app/output_artifacts
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - codevideo_network
+
+  # ===========================================================================
+  # 4. Celery Worker (Asynchronous Video Generation Pipeline)
+  # ===========================================================================
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: codevideo_celery_worker
+    restart: unless-stopped
+    command: celery -A app.workers.celery_worker.celery_app worker --loglevel=info --concurrency=2
+    environment:
+      # Database & Cache Connections
+      DATABASE_URL: postgresql://${POSTGRES_USER:-codevideo}:${POSTGRES_PASSWORD:-codevideo_secret}@postgres:5432/${POSTGRES_DB:-codevideo_db}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      REDIS_URL: redis://redis:6379/0
+
+      # Pipeline AI & Cloud APIs
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-codevideo-tutorials}
+    volumes:
+      # Shared persistent volume for rendering Manim, Edge TTS, and FFmpeg videos
+      - video_artifacts:/app/output_artifacts
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - codevideo_network
+
+  # ===========================================================================
+  # 5. Next.js 15 App Router Frontend Application
+  # ===========================================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: codevideo_frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      BACKEND_API_URL: http://backend:8000
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-https://mock-project.supabase.co}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - codevideo_network
+
+# =============================================================================
+# Persistent Data Volumes
+# =============================================================================
+volumes:
+  postgres_data:
+    name: codevideo_postgres_data
+    driver: local
+  redis_data:
+    name: codevideo_redis_data
+    driver: local
+  video_artifacts:
+    name: codevideo_artifacts
+    driver: local
+
+# =============================================================================
+# Isolated Container Network
+# =============================================================================
+networks:
+  codevideo_network:
+    name: codevideo_net
+    driver: bridge
+

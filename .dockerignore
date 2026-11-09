@@ -1,0 +1,41 @@
+# Git & Version Control
+.git
+.gitignore
+.github
+
+# Python Bytecode & Environments
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local Database & Artifacts
+codevideo.db
+*.sqlite3
+output_artifacts/*
+!output_artifacts/.gitkeep
+temp/
+tmp/
+
+# Frontend (handled by its own Docker build)
+frontend/node_modules
+frontend/.next
+frontend/out
+
+# IDEs & System
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+

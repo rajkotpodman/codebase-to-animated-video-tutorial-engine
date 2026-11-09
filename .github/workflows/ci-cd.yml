@@ -1,0 +1,243 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Code Quality & Formatting Checks (Flake8 & Black)
+  # ---------------------------------------------------------------------------
+  code-formatting:
+    name: Code Quality (Black & Flake8)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Code Quality Linters
+        run: |
+          python -m pip install --upgrade pip
+          pip install black flake8
+
+      - name: Run Black Code Formatting Check
+        run: |
+          black --check app tests manim_engine
+
+      - name: Run Flake8 Linter Check
+        run: |
+          flake8 app tests manim_engine
+
+  # ---------------------------------------------------------------------------
+  # 2. DevSecOps Security Scanning (Bandit SAST & Safety Dependency Audit)
+  # ---------------------------------------------------------------------------
+  security-scan:
+    name: DevSecOps Vulnerability Scan (Bandit & Safety)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install DevSecOps Scanning Tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install bandit safety
+
+      - name: Run Bandit Static Code Vulnerability Analysis
+        run: |
+          bandit -c .bandit -r app/ -v
+
+      - name: Run Safety Dependency Vulnerability Analysis
+        run: |
+          safety check -r requirements.txt --continue-on-error
+
+  # ---------------------------------------------------------------------------
+  # 3. Frontend Validation & Production Build
+  # ---------------------------------------------------------------------------
+  frontend-check:
+    name: Frontend Lint & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: "frontend/package-lock.json"
+
+      - name: Install Frontend Dependencies
+        working-directory: ./frontend
+        run: |
+          npm ci
+
+      - name: Verify Next.js Production Build
+        working-directory: ./frontend
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+          NODE_ENV: production
+        run: |
+          npm run build
+
+  # ---------------------------------------------------------------------------
+  # 4. Backend Unit & Integration Tests (Pytest with Redis & PostgreSQL)
+  # ---------------------------------------------------------------------------
+  backend-tests:
+    name: Pytest Unit & Integration Tests
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 2s
+          --health-retries 5
+
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: video_engine_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 2s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Set up Node.js (for Repomix CLI)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install System Multimedia & Animation Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ffmpeg \
+            libcairo2-dev \
+            libpango1.0-dev \
+            libffi-dev \
+            pkg-config \
+            build-essential
+          sudo npm install -g repomix
+
+      - name: Install Python Backend Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Backend Pytest Suite
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/video_engine_test
+          REDIS_URL: redis://localhost:6379/0
+          CELERY_BROKER_URL: redis://localhost:6379/0
+          CELERY_RESULT_BACKEND: redis://localhost:6379/0
+          TESTING: "true"
+          ENABLE_METRICS: "true"
+        run: |
+          python -m pytest -v --tb=short tests/
+
+  # ---------------------------------------------------------------------------
+  # 5. Multi-Stage Docker Container Build & Push (On Merge to Main)
+  # ---------------------------------------------------------------------------
+  build-and-push-docker:
+    name: Build & Push Docker Images
+    needs: [code-formatting, security-scan, frontend-check, backend-tests]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry (GHCR)
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Extract repository name in lowercase for Docker image naming compatibility
+      - name: Prepare Image Repository Names
+        id: repo_slug
+        run: |
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          echo "backend_image=${{ env.REGISTRY }}/${REPO_LOWER}/backend" >> $GITHUB_OUTPUT
+          echo "frontend_image=${{ env.REGISTRY }}/${REPO_LOWER}/frontend" >> $GITHUB_OUTPUT
+
+      # Backend Container Image
+      - name: Build and Push Backend Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ steps.repo_slug.outputs.backend_image }}:latest
+            ${{ steps.repo_slug.outputs.backend_image }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Frontend Container Image
+      - name: Build and Push Frontend Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.repo_slug.outputs.frontend_image }}:latest
+            ${{ steps.repo_slug.outputs.frontend_image }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+

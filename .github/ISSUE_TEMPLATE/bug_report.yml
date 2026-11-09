@@ -1,0 +1,56 @@
+name: 🐛 Bug Report
+description: File a bug report to help us fix an issue
+title: "[BUG]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+  - type: input
+    id: repository
+    attributes:
+      label: Target GitHub Repository URL
+      description: The repository you were trying to generate a tutorial video for.
+      placeholder: https://github.com/username/project
+    validations:
+      required: false
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Pipeline Stage Where Failure Occurred
+      options:
+        - "Stage 1: Repomix Ingestion"
+        - "Stage 2: AST Graph Analysis"
+        - "Stage 3: Gemini Script Synthesis"
+        - "Stage 4: Edge-TTS Audio Generation"
+        - "Stage 5: Manim Vector Rendering"
+        - "Stage 6: FFmpeg Video Compositing"
+        - "Binance Pay / Billing"
+        - "Frontend UI / Studio"
+        - "Other / Unknown"
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the Bug
+      description: Clear and concise description of what happened.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error Logs or Terminal Output
+      description: Paste any relevant logs or stack traces.
+      render: shell
+  - type: textarea
+    id: environment
+    attributes:
+      label: System Environment
+      description: OS version, Python version, Node version, FFmpeg version.
+      value: |
+        - OS: Windows / macOS / Linux
+        - Python version: 3.11.x
+        - Node version: 20.x
+        - FFmpeg: Installed

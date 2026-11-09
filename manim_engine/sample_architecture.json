@@ -1,0 +1,143 @@
+{
+  "config": {
+    "title": "Codebase-to-Video Engine Architecture",
+    "subtitle": "Distributed Ingestion, Synthesis, & Animation Flow",
+    "theme": "midnight",
+    "background_color": "#0B0F19",
+    "duration_per_flow": 2.0,
+    "intro_duration": 1.5,
+    "outro_duration": 2.0
+  },
+  "nodes": [
+    {
+      "id": "web_dashboard",
+      "label": "Web Studio",
+      "kind": "frontend",
+      "tech": "Next.js 15 & React",
+      "layer": 0,
+      "details": ["Repo Input", "Video Timeline", "Export Controls"]
+    },
+    {
+      "id": "api_gateway",
+      "label": "API Gateway",
+      "kind": "gateway",
+      "tech": "FastAPI & Envoy",
+      "layer": 1,
+      "details": ["Rate Limiter", "Auth Check", "Route Dispatch"]
+    },
+    {
+      "id": "ingestion_service",
+      "label": "Ingestion Service",
+      "kind": "backend",
+      "tech": "GitPython & Repomix",
+      "layer": 2,
+      "details": ["Repo Cloner", "AST Compression", "Token Counter"]
+    },
+    {
+      "id": "tts_service",
+      "label": "Audio & TTS Service",
+      "kind": "backend",
+      "tech": "EdgeTTS & Whisper",
+      "layer": 2,
+      "details": ["Neural Voiceover", "SRT Alignment", "Waveform Sync"]
+    },
+    {
+      "id": "manim_renderer",
+      "label": "Manim Engine",
+      "kind": "backend",
+      "tech": "Manim Community v0.22",
+      "layer": 2,
+      "details": ["Scene Synthesis", "Vector Animation", "FFmpeg Encode"]
+    },
+    {
+      "id": "redis_cache",
+      "label": "State & Cache",
+      "kind": "cache",
+      "tech": "Redis 7.2",
+      "layer": 3,
+      "details": ["Token Cache", "Session Store"]
+    },
+    {
+      "id": "task_queue",
+      "label": "Job Broker",
+      "kind": "queue",
+      "tech": "Celery & RabbitMQ",
+      "layer": 3,
+      "details": ["Render Tasks", "TTS Chunks"]
+    },
+    {
+      "id": "primary_db",
+      "label": "Primary Database",
+      "kind": "database",
+      "tech": "PostgreSQL 16",
+      "layer": 4,
+      "details": ["Codebase Graphs", "Scene Manifests", "Video Metadata"]
+    }
+  ],
+  "connections": [
+    {
+      "id": "c1",
+      "source_id": "web_dashboard",
+      "target_id": "api_gateway",
+      "label": "Submit GitHub Repo",
+      "protocol": "HTTPS REST",
+      "animated": true,
+      "packet_color": "#38BDF8"
+    },
+    {
+      "id": "c2",
+      "source_id": "api_gateway",
+      "target_id": "ingestion_service",
+      "label": "Dispatch Ingest",
+      "protocol": "gRPC",
+      "animated": true,
+      "packet_color": "#4ADE80"
+    },
+    {
+      "id": "c3",
+      "source_id": "ingestion_service",
+      "target_id": "redis_cache",
+      "label": "Cache Codebase Pack",
+      "protocol": "RESP",
+      "animated": true,
+      "packet_color": "#F43F5E"
+    },
+    {
+      "id": "c4",
+      "source_id": "ingestion_service",
+      "target_id": "task_queue",
+      "label": "Enqueue Scripting & Video",
+      "protocol": "AMQP",
+      "animated": true,
+      "packet_color": "#FBBF24"
+    },
+    {
+      "id": "c5",
+      "source_id": "task_queue",
+      "target_id": "tts_service",
+      "label": "Synthesize Voiceover",
+      "protocol": "Worker Poll",
+      "animated": true,
+      "packet_color": "#A855F7"
+    },
+    {
+      "id": "c6",
+      "source_id": "task_queue",
+      "target_id": "manim_renderer",
+      "label": "Render Vector Scenes",
+      "protocol": "Worker Poll",
+      "animated": true,
+      "packet_color": "#06B6D4"
+    },
+    {
+      "id": "c7",
+      "source_id": "manim_renderer",
+      "target_id": "primary_db",
+      "label": "Persist Video Artifacts",
+      "protocol": "Async SQL",
+      "animated": true,
+      "packet_color": "#10B981"
+    }
+  ]
+}
+
