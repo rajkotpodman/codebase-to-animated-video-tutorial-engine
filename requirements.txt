@@ -21,7 +21,7 @@ google-genai>=0.1.0
 
 # Animation & Media Processing (Manim Community & FFmpeg)
 manim>=0.18.0
-imageio-ffmpeg>=0.5.0
+imageio-ffmpeg>=0.8.1
 
 # Neural Voiceover & Audio
 edge-tts>=7.0.0
