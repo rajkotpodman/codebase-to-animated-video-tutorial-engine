@@ -217,7 +217,7 @@ jobs:
 
       # Backend Container Image
       - name: Build and Push Backend Docker Image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./Dockerfile
@@ -230,7 +230,7 @@ jobs:
 
       # Frontend Container Image
       - name: Build and Push Frontend Docker Image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: ./frontend
           file: ./frontend/Dockerfile
