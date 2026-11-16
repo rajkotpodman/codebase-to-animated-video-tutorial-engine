@@ -26,7 +26,7 @@
     "tailwind-merge": "^3.0.0"
   },
   "devDependencies": {
-    "@openapitools/openapi-generator-cli": "^2.42.0",
+    "@openapitools/openapi-generator-cli": "^2.42.2",
     "@playwright/test": "^1.65.0",
     "@types/node": "^22.10.0",
     "@types/react": "^19.0.0",
